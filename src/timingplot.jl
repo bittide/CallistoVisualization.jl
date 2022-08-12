@@ -44,6 +44,11 @@ getvar(x,i) = x
 ##############################################################################
 # graph functions
 
+#
+# ticks is a list of length n
+# each ticks[i] is a list of tuples  (t, theta[i](t))
+# for each tick of clock i 
+#
 function ExtGraph(ticks)
     nodes = [[ Node(i, time, Int(theta)) for (time, theta) in ticks[i]] for i=1:length(ticks)]
     starting_thetas = Int64[nodelist[1].theta for nodelist in nodes]
@@ -56,7 +61,7 @@ end
 
 function node_by_theta(extgraph::ExtGraph, i, theta)
     ind = Int(theta - extgraph.starting_thetas[i]+1)
-    if ind > length(extgraph.nodes[i])
+    if ind > length(extgraph.nodes[i]) || ind < 1
         return nothing
     end
     return extgraph.nodes[i][ind]
@@ -119,27 +124,43 @@ function draw_buffer_frames(ax, ctx, vs, linkstate, t)
     end
 end
 
+struct StraightEdge
+    edgeid
+    src
+    dst
+    ugn
+end
 
-function draw_outgoing_edges(ax, ctx, vs, extgraph, linkstate, straight=true)
-    e = linkstate.edgeid
-    src = linkstate.src
-    dst = linkstate.dst
-    for node in extgraph.nodes[src]
+struct BentEdge
+    edgeid
+    src
+    dst
+    ugn
+    latency
+end
+
+function draw_outgoing_edge(ax, ctx, vs, extgraph, edge::StraightEdge)
+    for node in extgraph.nodes[edge.src]
         p1 = Point(node)
-        p2 = Point((src+dst)/2, node.time + linkstate.latency)
-        next_node = node_by_theta(extgraph, dst, node.theta + linkstate.nzero)
+        next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
         if !isnothing(next_node)
             p3 = Point(next_node)
-            if straight
-                draw(ax, ctx, p1, p3, getvar(vs.straightpath, e))
-                #line(ax, ctx, p1, p3; linestyle = vs.linestyle, arrowpos = vs.arrowpos)
-            else
-                line(ax, ctx, [p1, p2, p3]; linestyle=vs.linestyle)
-            end
+            draw(ax, ctx, p1, p3, getvar(vs.straightpath, edge.edgeid))
         end
     end
 end
 
+function draw_outgoing_edge(ax, ctx, vs, extgraph, edge::BentEdge)
+    for node in extgraph.nodes[edge.src]
+        p1 = Point(node)
+        p2 = Point((edge.src + edge.dst)/2, node.time + edge.latency)
+        next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
+        if !isnothing(next_node)
+            p3 = Point(next_node)
+            line(ax, ctx, [p1, p2, p3]; linestyle=vs.linestyle)
+        end
+    end
+end
 
 function draw_node(ax, ctx, vs, node)
     sl = string(Int(round(node.theta  + vs.offsets[node.nodeid])))
@@ -289,27 +310,47 @@ function drawtiming(vs::Timing, sample, t)
     return d
 end
 
-
-function drawtiming(ctx, vs::Timing, sample, t)
-    extgraph = ExtGraph(sample.ticks)
+# call this function with data not in
+# the form of a sample
+function drawtimingx(ctx, vs::Timing, ticks, edgedict)
+    extgraph = ExtGraph(ticks)
     ax = vs.axis.ax
-    
-    if !vs.straight
-        line(ax, ctx, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle((0,0,0, 0.5), 1))
-    end
 
-    for e in vs.drawedges
-        draw_outgoing_edges(ax, ctx, vs, extgraph, sample.linkstates[e], vs.straight)
+    for (e, edge) in edgedict 
+        draw_outgoing_edge(ax, ctx, vs, extgraph, edge)
     end
 
     for node in allnodes(extgraph)
         draw_outgoing_vertical_edge(ax, ctx, vs, extgraph, node)
     end
-    
+
     for node in allnodes(extgraph)
         draw_node(ax, ctx, vs, node)
     end
     
+    return extgraph
+end
+
+function makeedge(ls, straight)
+    if straight
+        return StraightEdge(ls.edgeid, ls.src, ls.dst, ls.nzero)
+    else
+        return BentEdge(ls.edgeid, ls.src, ls.dst, ls.nzero, ls.latency)
+    end
+end
+
+function drawtiming(ctx, vs::Timing, sample, t)
+    edgedict = Dict(e => makeedge(sample.linkstates[e], vs.straight) for e in vs.drawedges)
+    extgraph = drawtimingx(ctx, vs, sample.ticks, edgedict)
+
+    ax = vs.axis.ax
+
+    # horizontal line indicating current value of t
+    if !vs.straight
+        line(ax, ctx, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle((0,0,0, 0.5), 1))
+    end
+
+    # draw frames
     if vs.drawframes && !vs.straight
         for e in vs.drawedges
             draw_link_frames(ax, ctx, vs, sample.linkstates[e], t)

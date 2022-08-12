@@ -208,7 +208,8 @@ function Sample(ps::PhaseHistory, t)
     edges = ps.edges  # bidirectional, so both (1,2) and (2,1) listed
     m = length(edges)
   
-    theta_knots = [zip(xy(ps.theta[i])...) for i=1:n]
+    #theta_knots = [zip(xy(ps.theta[i])...) for i=1:n]
+    theta_knots = tuples.(ps.theta)
     theta = [ps.theta[i](t) for i=1:n]
     # a = @allocated println("a = ", a)
 
