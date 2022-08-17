@@ -74,10 +74,10 @@ function drawphase(ctx, dp::Phase, fl, t)
 end
 
 function Phase(axis, ymin, ymax)
-    red = pk.colormap(345)
-    green = pk.colormap(223)
-    blue = pk.colormap(30)
-    yellow = pk.colormap(5)
+    red = pk.colormap(1)
+    green = pk.colormap(2)
+    blue = pk.colormap(3)
+    yellow = pk.colormap(4)
     
     bufcols = [blue, yellow]
     linkcols = [red, green]

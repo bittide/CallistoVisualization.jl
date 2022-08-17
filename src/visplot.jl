@@ -1,23 +1,4 @@
 
-# general structure of plotting
-#
-#   x = set_some_state(params; options...)
-#   drawable = plot(data, x)
-#   save(drawable, fname)
-#
-#  should also have a one-call version
-#
-#   drawable = autoplot(data)
-#
-#
-
-# or for animation
-#
-#   x = set_some_state(params; options)
-#   drawable = plot(data, x)
-#   anim = Anim(drawable)
-#   display_move(anim)
-#
 
 
 rot90(a::Point) = Point(-a.y, a.x)
@@ -71,8 +52,6 @@ mutable struct Frames
     draw_moving_frame
     draw_buffered_frame
     draw_clock
-#    speed
-#    tmax
     windowbackgroundcolor
     squeezebuffers
     squeezemax
@@ -286,7 +265,6 @@ function draw_moving_frame1(ctx, vis, m)
 end
 
 # spreads out from beginning to end
-#buffered_frame_position(b) = interp(b.endingpoint, b.startingpoint, (b.theta - b.thetamin)/(b.thetamax - b.thetamin))
 buffered_frame_position(src, dst, b) = interp(dst, src, (b.theta - b.thetamin)/(b.thetamax - b.thetamin))
 
 
@@ -368,14 +346,11 @@ end
 
 
 function Frames(n, edges, geom, vl, gl)
-    #    speed = 1/2
-    #    tmax = 30
-    # colors
-    red = pk.colormap(345)
-    green = pk.colormap(223)
-    blue = pk.colormap(30)
-    yellow = pk.colormap(5)
-    
+    red = pk.colormap(1)
+    green = pk.colormap(2)
+    blue = pk.colormap(3)
+    yellow = pk.colormap(4)
+
     if n == 2
         bufcols = e -> [blue, yellow][e]
         linkcols = e -> [red, green][e]

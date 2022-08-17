@@ -4,6 +4,7 @@ mutable struct Timing
     axis
     n
     edges
+    tmin
     tmax
     bufcols
     linkcols
@@ -188,19 +189,19 @@ end
 
 
 function Timing(n, edges, bidirectional)
-    red = pk.colormap(345)
-    green = pk.colormap(223)
-    blue = pk.colormap(30)
-    yellow = pk.colormap(5)
-    lightred = pk.colormap(49)
-    lightgreen = pk.colormap(343)
-    lightblue = pk.colormap(22)
-    lightyellow = pk.colormap(53)
-    darkred = pk.colormap(185)
-    darkgreen = pk.colormap(127)
-    darkblue = pk.colormap(190)
-    darkyellow = pk.colormap(325)
-
+    red = pk.colormap(1)
+    green = pk.colormap(2)
+    blue = pk.colormap(3)
+    yellow = pk.colormap(4)
+    darkred = pk.colormap(5)
+    darkgreen = pk.colormap(6)
+    darkblue = pk.colormap(7)
+    darkyellow = pk.colormap(8)
+    lightred = pk.colormap(9)
+    lightgreen = pk.colormap(10)
+    lightblue = pk.colormap(11)
+    lightyellow = pk.colormap(12)
+   
     m = length(edges)
     if n == 2
         bufcols = [blue, yellow]
@@ -222,6 +223,7 @@ function Timing(n, edges, bidirectional)
     end
     
     tmax = 10
+    tmin = 0
     offsets = zeros(n)
     noderadius = 10
     nodefontsize = 14
@@ -251,6 +253,7 @@ function Timing(n, edges, bidirectional)
     ds = Timing(nothing,
                 n,
                 edges,
+                tmin,
                 tmax,
                 bufcols,
                 linkcols,
@@ -293,7 +296,8 @@ function Timing(n, edges; bidirectional = false, kwargs...)
     setoptions!(vs, "timinggraph_", merge(defaults, kwargs)...)
     
     axis = Axis(; merge(defaults, kwargs)...,
-                box1_ymax = vs.tmax,
+                axisbox_ymax = vs.tmax,
+                axisbox_ymin = vs.tmin,
                 ticks_yticks = [-0.5, vs.tmax])
 
     vs.axis = axis
