@@ -282,27 +282,25 @@ end
 nodename(i) = string("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i])
 
 function Timing(n, edges; bidirectional = false, kwargs...)
+
+    vs = Timing(n, edges, bidirectional)
+    setoptions!(vs, "timinggraph_", kwargs...)
+    
     defaults = Dict(
         :windowbackgroundcolor => hexcol(0xb0b0b0),
-        :axisbox_ymin => -0.5,
+        :axisbox_ymin => vs.tmin,
+        :axisbox_ymax => vs.tmax,
         :axisbox_xmin => 0.75,
         :axisbox_xmax => n + 0.25,
         :ticks_xticks => vcat(0.75, collect(1:n), n+0.25),
+        :ticks_yticks => [0,1],
         :ticks_xtickstrings => vcat("",  nodename.(collect(1:n)),""),
-        :ticks_ytickstrings => ["", ""]
+        :ticks_ytickstrings => ["",""]
     )
-
-    vs = Timing(n, edges, bidirectional)
-    setoptions!(vs, "timinggraph_", merge(defaults, kwargs)...)
     
-    axis = Axis(; merge(defaults, kwargs)...,
-                axisbox_ymax = vs.tmax,
-                axisbox_ymin = vs.tmin,
-                ticks_yticks = [-0.5, vs.tmax])
+    axis = Axis(; merge(defaults, kwargs)...)
 
     vs.axis = axis
-
-    
     return vs
 end
 
