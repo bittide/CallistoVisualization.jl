@@ -26,6 +26,7 @@ mutable struct Timing
     straightpath
     nodeborderlinestyle
     nodefillcolor
+    nodelabelsincludeid
 end
 
 struct Node
@@ -164,7 +165,11 @@ function draw_outgoing_edge(ax, ctx, vs, extgraph, edge::BentEdge)
 end
 
 function draw_node(ax, ctx, vs, node)
-    sl = string(Int(round(node.theta  + vs.offsets[node.nodeid])))
+    nodetime = Int(round(node.theta  + vs.offsets[node.nodeid]))
+    sl = string(nodetime)
+    if vs.nodelabelsincludeid
+        sl = string(node.nodeid) * ", " * string(nodetime)
+    end
     p = Point(node.nodeid, node.time)
     circle(ax, ctx, p, vs.noderadius;
            linestyle = vs.nodeborderlinestyle, fillcolor = vs.nodefillcolor)
@@ -235,7 +240,7 @@ function Timing(n, edges, bidirectional)
     end
     
     drawframes = true
-    linestyle = LineStyle((0,0,0),2)
+    linestyle = LineStyle(Color(:black),2)
 
     a = (0.5, TriangularArrow())
     b = (0.5, TriangularArrow())
@@ -245,11 +250,12 @@ function Timing(n, edges, bidirectional)
     numberframes = false
     frameradius = 13
     framefontsize = 12
-    framefontcolor = (1,1,1)
-    nodefontcolor = (0,0,0)
+    framefontcolor = Color(:white)
+    nodefontcolor = Color(:black)
 
-    nodeborderlinestyle = LineStyle((0,0,0),1)
-    nodefillcolor = (1,1,1)
+    nodeborderlinestyle = LineStyle(Color(:black),1)
+    nodefillcolor = Color(:white)
+    nodelabelsincludeid = false
     ds = Timing(nothing,
                 n,
                 edges,
@@ -274,7 +280,8 @@ function Timing(n, edges, bidirectional)
                 nodefontcolor,
                 straightpath,
                 nodeborderlinestyle,
-                nodefillcolor
+                nodefillcolor,
+                nodelabelsincludeid
                    )
     return ds
 end
