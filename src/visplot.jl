@@ -411,7 +411,7 @@ function get_buffers_to_draw(vis)
     return buffers
 end
 
-function drawframes(ctx::PlotKit.Cairo.CairoContext, vis, visstate)
+function drawframes(ctx::CairoContext, vis, visstate)
     for i=1:vis.num_nodes
         vis.draw_clock(ctx, vis, i, visstate.theta[i])
     end

@@ -2,6 +2,7 @@ module CallistoVisualization
 
 
 # independent modules
+using Cairo
 using PlotKit
 using Callisto
 const pk = PlotKit
