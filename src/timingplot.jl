@@ -305,7 +305,7 @@ function Timing(n, edges; bidirectional = false, kwargs...)
         :ticks_ytickstrings => ["",""]
     )
     
-    axis = Axis(; merge(defaults, kwargs)...)
+    axis = AxisDrawable(; merge(defaults, kwargs)...)
 
     vs.axis = axis
     return vs
