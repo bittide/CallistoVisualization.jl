@@ -1,7 +1,7 @@
 
 
 mutable struct Timing
-    axis
+    axisdrawable
     n
     edges
     tmin
@@ -27,6 +27,7 @@ mutable struct Timing
     nodeborderlinestyle
     nodefillcolor
     nodelabelsincludeid
+    scaletype
 end
 
 struct Node
@@ -79,7 +80,7 @@ end
 
 ##############################################################################
 
-function draw_link_frames(ax, ctx, vs, linkstate, t)
+function draw_link_frames(ad::AxisDrawable, vs, linkstate, t)
     for mover in linkstate.movers
         alpha = mover.fraction_traveled
              
@@ -88,17 +89,19 @@ function draw_link_frames(ax, ctx, vs, linkstate, t)
         x2 = (linkstate.src + linkstate.dst)/2
 
         x = x1 .+ alpha*(x2-x1)
-        circle(ax, ctx, Point(x,t), vs.frameradius;
+        circle(ad, Point(x,t), vs.frameradius;
+               scaletype = vs.scaletype, 
                fillcolor = vs.linkcols[linkstate.edgeid])
         if vs.numberframes
-            text(ax, ctx, Point(x,t), vs.framefontsize, vs.framefontcolor,
+            text(ad, Point(x,t), vs.framefontsize, vs.framefontcolor,
                  string(Int64(round(mover.senders_theta)));
+                 scaletype = vs.scaletype, 
                  horizontal = "center", vertical = "center")
         end
     end
 end
 
-function draw_buffer_frames(ax, ctx, vs, linkstate, t)
+function draw_buffer_frames(ad::AxisDrawable, vs, linkstate, t)
     for buffered_frame in linkstate.occupants
 
         # y2 is the time it was sent + latency
@@ -116,11 +119,13 @@ function draw_buffer_frames(ax, ctx, vs, linkstate, t)
         alpha = (t-y2)/(y3-y2)
         x = x2 + alpha*(x3-x2)
         
-        circle(ax, ctx, Point(x, t),  vs.frameradius;
+        circle(ad, Point(x, t),  vs.frameradius;
+               scaletype = vs.scaletype,
                fillcolor = vs.bufcols[linkstate.edgeid])
          if vs.numberframes
-            text(ax, ctx, Point(x,t), vs.framefontsize, vs.framefontcolor,
+            text(ad, Point(x,t), vs.framefontsize, vs.framefontcolor,
                  string(Int64(round(buffered_frame.senders_theta)));
+                 scaletype = vs.scaletype,
                  horizontal = "center", vertical = "center")
         end
     end
@@ -141,47 +146,53 @@ struct BentEdge
     latency
 end
 
-function draw_outgoing_edge(ax, ctx, vs, extgraph, edge::StraightEdge)
+function draw_outgoing_edge(ad::AxisDrawable, vs, extgraph, edge::StraightEdge)
     for node in extgraph.nodes[edge.src]
         p1 = Point(node)
         next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
         if !isnothing(next_node)
             p3 = Point(next_node)
-            draw(ax, ctx, p1, p3, getvar(vs.straightpath, edge.edgeid))
+            pth = getvar(vs.straightpath, edge.edgeid)
+            pth.points = [p1, p3]
+            draw(ad, pth)
         end
     end
 end
 
-function draw_outgoing_edge(ax, ctx, vs, extgraph, edge::BentEdge)
+function draw_outgoing_edge(ad::AxisDrawable, vs, extgraph, edge::BentEdge)
     for node in extgraph.nodes[edge.src]
         p1 = Point(node)
         p2 = Point((edge.src + edge.dst)/2, node.time + edge.latency)
         next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
         if !isnothing(next_node)
             p3 = Point(next_node)
-            line(ax, ctx, [p1, p2, p3]; linestyle=vs.linestyle)
+            line(ad, [p1, p2, p3]; linestyle=vs.linestyle)
         end
     end
 end
 
-function draw_node(ax, ctx, vs, node)
+function draw_node(ad::AxisDrawable, vs, node)
     nodetime = Int(round(node.theta  + vs.offsets[node.nodeid]))
     sl = string(nodetime)
     if vs.nodelabelsincludeid
         sl = string(node.nodeid) * ", " * string(nodetime)
     end
     p = Point(node.nodeid, node.time)
-    circle(ax, ctx, p, vs.noderadius;
+    circle(ad, p, vs.noderadius;
+           scaletype = vs.scaletype,
            linestyle = vs.nodeborderlinestyle, fillcolor = vs.nodefillcolor)
     darkred = pk.colormap(185)
-    text(ax, ctx, p, vs.nodefontsize, vs.nodefontcolor, sl;
+    text(ad, p, vs.nodefontsize, vs.nodefontcolor, sl;
+         scaletype = vs.scaletype,
          horizontal = "center", vertical = "center")
 end
 
-function draw_outgoing_vertical_edge(ax, ctx, vs, extgraph, node)
+function draw_outgoing_vertical_edge(ad::AxisDrawable, vs, extgraph, node)
     nn = next_node(extgraph, node)
     if !isnothing(nn)
-        draw(ax, ctx, Point(node), Point(nn), vs.verticalpath)
+        pth = vs.verticalpath
+        pth.points = [Point(node), Point(nn)]
+        draw(ad, pth)
     end
 end
 
@@ -242,8 +253,8 @@ function Timing(n, edges, bidirectional)
     drawframes = true
     linestyle = LineStyle(Color(:black),2)
 
-    a = (0.5, TriangularArrow())
-    b = (0.5, TriangularArrow())
+    a = (0.5, TriangularArrow(; size = 0.02))
+    b = (0.5, TriangularArrow(; size = 0.02))
     verticalpath = Path(; arrows = (a,), linestyle)
     straightpath = Path(; arrows = (b,), linestyle)
 
@@ -256,6 +267,7 @@ function Timing(n, edges, bidirectional)
     nodeborderlinestyle = LineStyle(Color(:black),1)
     nodefillcolor = Color(:white)
     nodelabelsincludeid = false
+    scaletype = :none
     ds = Timing(nothing,
                 n,
                 edges,
@@ -281,7 +293,8 @@ function Timing(n, edges, bidirectional)
                 straightpath,
                 nodeborderlinestyle,
                 nodefillcolor,
-                nodelabelsincludeid
+                nodelabelsincludeid,
+                scaletype
                    )
     return ds
 end
@@ -305,36 +318,33 @@ function Timing(n, edges; bidirectional = false, kwargs...)
         :ticks_ytickstrings => ["",""]
     )
     
-    axis = AxisDrawable(; merge(defaults, kwargs)...)
+    ad = AxisDrawable(; merge(defaults, kwargs)...)
 
-    vs.axis = axis
+    vs.axisdrawable = ad
     return vs
 end
 
 function drawtiming(vs::Timing, sample, t)
-    d = Drawable(vs.axis)
-    over(d) do ctx
-        drawtiming(ctx, vs, sample, t)
-    end
-    return d
+    ad = vs.axisdrawable
+    drawtiming(ad, vs, sample, t)
+    return ad
 end
 
 # call this function with data not in
 # the form of a sample
-function drawtimingx(ctx, vs::Timing, ticks, edgedict)
+function drawtimingx(ad::AxisDrawable, vs::Timing, ticks, edgedict)
     extgraph = ExtGraph(ticks)
-    ax = vs.axis.ax
 
     for (e, edge) in edgedict 
-        draw_outgoing_edge(ax, ctx, vs, extgraph, edge)
+        draw_outgoing_edge(ad, vs, extgraph, edge)
     end
 
     for node in allnodes(extgraph)
-        draw_outgoing_vertical_edge(ax, ctx, vs, extgraph, node)
+        draw_outgoing_vertical_edge(ad, vs, extgraph, node)
     end
 
     for node in allnodes(extgraph)
-        draw_node(ax, ctx, vs, node)
+        draw_node(ad, vs, node)
     end
     
     return extgraph
@@ -348,22 +358,22 @@ function makeedge(ls, straight)
     end
 end
 
-function drawtiming(ctx, vs::Timing, sample, t)
+function drawtiming(ad::AxisDrawable, vs::Timing, sample, t)
     edgedict = Dict(e => makeedge(sample.linkstates[e], vs.straight) for e in vs.drawedges)
-    extgraph = drawtimingx(ctx, vs, sample.ticks, edgedict)
+    extgraph = drawtimingx(ad, sample.ticks, edgedict)
 
-    ax = vs.axis.ax
+
 
     # horizontal line indicating current value of t
     if !vs.straight
-        line(ax, ctx, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle((0,0,0, 0.5), 1))
+        line(ad, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle((0,0,0, 0.5), 1))
     end
 
     # draw frames
     if vs.drawframes && !vs.straight
         for e in vs.drawedges
-            draw_link_frames(ax, ctx, vs, sample.linkstates[e], t)
-            draw_buffer_frames(ax, ctx, vs, sample.linkstates[e], t)
+            draw_link_frames(ad, vs, sample.linkstates[e], t)
+            draw_buffer_frames(ad, vs, sample.linkstates[e], t)
         end
     end
 end
