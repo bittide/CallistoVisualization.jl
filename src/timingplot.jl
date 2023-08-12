@@ -1,7 +1,7 @@
 
 
 mutable struct Timing
-    axisdrawable
+    axis
     n
     edges
     tmin
@@ -318,14 +318,16 @@ function Timing(n, edges; bidirectional = false, kwargs...)
         :ticks_ytickstrings => ["",""]
     )
     
-    ad = AxisDrawable(; merge(defaults, kwargs)...)
+    axis = Axis(; merge(defaults, kwargs)...)
 
-    vs.axisdrawable = ad
+    vs.axis = axis
     return vs
 end
 
 function drawtiming(vs::Timing, sample, t)
-    ad = vs.axisdrawable
+    ad = AxisDrawable(vs.axis)
+    drawaxis(ad)
+    setclipbox(ad)
     drawtiming(ad, vs, sample, t)
     return ad
 end
@@ -360,13 +362,13 @@ end
 
 function drawtiming(ad::AxisDrawable, vs::Timing, sample, t)
     edgedict = Dict(e => makeedge(sample.linkstates[e], vs.straight) for e in vs.drawedges)
-    extgraph = drawtimingx(ad, sample.ticks, edgedict)
+    extgraph = drawtimingx(ad, vs, sample.ticks, edgedict)
 
 
 
     # horizontal line indicating current value of t
     if !vs.straight
-        line(ad, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle((0,0,0, 0.5), 1))
+        line(ad, Point(-1, t), Point(vs.n+1, t); linestyle = LineStyle(Color(0,0,0, 0.5), 1))
     end
 
     # draw frames

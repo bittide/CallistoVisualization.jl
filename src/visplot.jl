@@ -70,7 +70,10 @@ struct Buffer
     flipped
 end
 
+
 ##############################################################################
+
+norm(a::Point) = sqrt(a.x*a.x + a.y*a.y)
 
 function default_vislayout()
     return VisLayout(80, 80, 80, 80, 50)
@@ -222,20 +225,20 @@ end
 
 
 
-function draw_buffer1(ctx, vis, l)
+function draw_buffer1(d, vis, l)
     s = l.exit
     r = l.tail
     dir = (r - s)
     dir = dir / norm(dir)
     perp = -1 * rot90(dir)
     hw = round(1.4*vis.frameradius)
-    linestyle = LineStyle((0,0,0),1)
+    linestyle = LineStyle(Color(:black),1)
     if l.flipped
         perp = -1 * perp
     end
 
-    line(ctx, [r - hw * perp - hw * dir, s - hw * perp + hw * dir]; linestyle)
-    line(ctx, [r - hw * perp + hw * dir, r + hw * perp + hw * dir,
+    line(d, [r - hw * perp - hw * dir, s - hw * perp + hw * dir]; linestyle)
+    line(d, [r - hw * perp + hw * dir, r + hw * perp + hw * dir,
                    s + hw * perp - hw * dir, s - hw * perp - hw * dir]; linestyle)
         
 end
@@ -252,13 +255,13 @@ moving_frame_position(m) = interp(m.startingpoint, m.endingpoint, (m.t - m.dt)/m
 #    m.edgeid
 #    label
 #
-function draw_moving_frame1(ctx, vis, m)
+function draw_moving_frame1(d, vis, m)
     e = m.edgeid
     col =  vis.linkcols(e)
     z = interp(vis.srcheads[e], vis.dsttails[e], m.fraction_traveled)
-    circle(ctx, z, vis.frameradius; fillcolor = col)
+    circle(d, z, vis.frameradius; fillcolor = col)
     if vis.numberframes
-        text(ctx, z, vis.framefontsize,
+        text(d, z, vis.framefontsize,
              vis.framefontcolor, string(Int64(round(m.senders_theta)));
              horizontal = "center", vertical = "center")
     end
@@ -324,23 +327,24 @@ function draw_buffered_frame1(ctx, vis, b, linkstate)
     end
 end
 
-function draw_clock1(ctx, vis, i, theta)
+function draw_clock1(d, vis, i, theta)
     r = vis.clockradius
     x = vis.clockcenters[i]
-    circle(ctx, x, r; linestyle=LineStyle( (0,0,0), 4), fillcolor=(200,200,200) )
-    ls = LineStyle((0.8,0.8,1), 4)
-
-    dx = Point(r * sin(theta*2*pi), - r * cos(theta*2*pi))
+    black = Color(:black)
+    red = Color(:red)
+    gray = Color(0.8, 0.8, 0.8)
+    darkgray = Color(0.4, 0.4, 0.4)
     
-    line(ctx, x, x + dx; linestyle = ls)
-    circle(ctx, x, 8; linestyle=ls, fillcolor=(100,100,100) )
+    circle(d, x, r; linestyle=LineStyle(black, 4), fillcolor = gray)
+    ls = LineStyle(black, 4)
+    dx = Point(r * sin(theta*2*pi), - r * cos(theta*2*pi))
+    line(d, x, x + dx; linestyle = ls)
+    circle(d, x, 8; linestyle = ls, fillcolor = darkgray)
     fsize=14
-
     if vis.showclockids
-        text(ctx, x, fsize, (0,0,0), vis.clockids[i]; horizontal="center", vertical="center")
+        text(d, x, fsize, black, vis.clockids[i]; horizontal="center", vertical="center")
     end
-
-    text(ctx, x + Point(0, -22), vis.clockthetafontsize, (1,0,0), string(Int64(floor(theta)));
+    text(d, x + Point(0, -22), vis.clockthetafontsize, red, string(Int64(floor(theta)));
              horizontal = "center", vertical = "center")
 end
 
@@ -364,7 +368,7 @@ function Frames(n, edges, geom, vl, gl)
     windowbackgroundcolor = hexcol(0xb0b0b0)
     numberframes = true
     framefontsize = 12
-    framefontcolor = (1,1,1)
+    framefontcolor = Color(:white)
     showclockids = false
     squeezebuffers = false
     squeezemax = 40
@@ -411,37 +415,41 @@ function get_buffers_to_draw(vis)
     return buffers
 end
 
-function drawframes(ctx::CairoContext, vis, visstate)
+#function drawframes(ctx::CairoContext, vis, visstate)
+function drawframes(d::Drawable, vis, visstate)
     for i=1:vis.num_nodes
-        vis.draw_clock(ctx, vis, i, visstate.theta[i])
+        vis.draw_clock(d, vis, i, visstate.theta[i])
     end
 
     buffers = get_buffers_to_draw(vis)
     for b in buffers
-        vis.draw_buffer(ctx, vis, b)
+        vis.draw_buffer(d, vis, b)
     end
 
     for linkstate in visstate.linkstates
         for b in linkstate.occupants
-            vis.draw_buffered_frame(ctx, vis, b, linkstate)
+            vis.draw_buffered_frame(d, vis, b, linkstate)
         end
     end
     
     for linkstate in visstate.linkstates
         for m in linkstate.movers
-            vis.draw_moving_frame(ctx, vis, m)
+            vis.draw_moving_frame(d, vis, m)
         end
     end
 
 end
 
 function drawframes(vis::Frames, visstate)
-    d = Drawable(vis.width, vis.height) do ctx
-        rect(ctx, Point(0,0), Point(vis.width, vis.height);
-             fillcolor = vis.windowbackgroundcolor)
-        drawframes(ctx, vis, visstate)
-    end
-    return d
+    #d = Drawable(vis.width, vis.height) do ctx
+    #    rect(ctx, Point(0,0), Point(vis.width, vis.height);
+    #         fillcolor = vis.windowbackgroundcolor)
+    #    drawframes(ctx, vis, visstate)
+    #end
+    ad = Drawable(vis.width, vis.height)
+    rect(ad.ctx, Point(0,0), Point(ad.width, ad.height); fillcolor = vis.windowbackgroundcolor)
+    drawframes(ad, vis, visstate)
+    return ad
 end
 
 

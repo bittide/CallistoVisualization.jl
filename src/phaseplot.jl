@@ -13,61 +13,61 @@ mutable struct Phase
     drawedge
 end
 
-function hline(ax, ctx, xmin, xmax, y)
-    line(ax, ctx, Point(xmin, y), Point(xmax, y); linestyle = LineStyle( (0,0,0), 1))
+function hline(ad, xmin, xmax, y)
+    line(ad, Point(xmin, y), Point(xmax, y); linestyle = LineStyle( Color(:black), 1))
 end
 
-function vline(ax, ctx, x, ymin, ymax)
-    line(ax, ctx, Point(x, ymin), Point(x, ymax); linestyle = LineStyle( (0,0,0), 2))
+function vline(ad, x, ymin, ymax)
+    line(ad, Point(x, ymin), Point(x, ymax); linestyle = LineStyle( Color(:black), 2))
 end
 
-function drawphase(ctx, dp::Phase, fl, t)
+function drawphase(ad, dp::Phase, fl, t)
     ax = dp.axis.ax
     edgeid = dp.edge
     oppedge = dp.oppedge
     latency = maximum(ls.latency for ls in fl.linkstates)
 
-    vline(ax, ctx, t, dp.ymin, dp.ymax)
-    vline(ax, ctx, t-latency, dp.ymin, dp.ymax)
+    vline(ad, t, dp.ymin, dp.ymax)
+    vline(ad, t-latency, dp.ymin, dp.ymax)
 
     linkstate = fl.linkstates[edgeid]
     opplinkstate = fl.linkstates[oppedge]
     
-    hline(ax, ctx, t-latency, t, opplinkstate.min_receiver_theta_in_buffer - opplinkstate.nzero)
-    hline(ax, ctx, t-latency, t, opplinkstate.min_receiver_theta_in_buffer + linkstate.nzero)
+    hline(ad, t-latency, t, opplinkstate.min_receiver_theta_in_buffer - opplinkstate.nzero)
+    hline(ad, t-latency, t, opplinkstate.min_receiver_theta_in_buffer + linkstate.nzero)
 
     src, dst = fl.edges[edgeid]
     p = [Point(a[1], a[2] + linkstate.nzero) for a in fl.theta_knots[src]]
-    line(ax, ctx, p; linestyle=LineStyle((0,0,0), 2))
+    line(ad, p; linestyle=LineStyle(Color(:black), 2))
 
     p = [Point(a[1], a[2]) for a in fl.theta_knots[dst]]
-    line(ax, ctx, p; linestyle=LineStyle((0,0,0), 2))
+    line(ad, p; linestyle=LineStyle(Color(:black), 2))
 
     if dp.drawedge
         for moving_frame in linkstate.movers
             p = Point(moving_frame.send_time,  moving_frame.receivers_theta)
-            circle(ax, ctx, p, 6; fillcolor = dp.linkcols[edgeid])
+            circle(ad, p, 6; fillcolor = dp.linkcols[edgeid], scaletype = :none)
         end
     end
 
     if dp.drawoppedge
         for moving_frame in opplinkstate.movers
             p = Point(moving_frame.send_time,  moving_frame.senders_theta)
-            circle(ax, ctx, p, 6; fillcolor = dp.linkcols[oppedge])
+            circle(ad, p, 6; fillcolor = dp.linkcols[oppedge], scaletype = :none)
         end
     end
 
     if dp.drawedge
         for buffered_frame in linkstate.occupants
             p = Point(t - (1-buffered_frame.fraction_traveled)*latency, buffered_frame.receivers_theta)
-            circle(ax, ctx, p, 6;fillcolor = dp.bufcols[edgeid])
+            circle(ad, p, 6;fillcolor = dp.bufcols[edgeid], scaletype = :none)
         end
     end
 
     if dp.drawoppedge
         for buffered_frame in opplinkstate.occupants
             p = Point(t - (1-buffered_frame.fraction_traveled)*latency, buffered_frame.senders_theta)
-            circle(ax, ctx, p, 6;fillcolor = dp.bufcols[oppedge])
+            circle(ad, p, 6;fillcolor = dp.bufcols[oppedge], scaletype = :none)
         end
     end
 
@@ -98,9 +98,9 @@ function Phase(; kwargs...)
 end
 
 function drawphase(dp::Phase, fl, t)
-    d = Drawable(dp.axis)
-    over(d) do ctx
-        drawphase(ctx, dp::Phase, fl, t)
-    end
-    return d
+    ad = AxisDrawable(dp.axis)
+    drawaxis(ad)
+    setclipbox(ad)
+    drawphase(ad, dp::Phase, fl, t)
+    return ad
 end
