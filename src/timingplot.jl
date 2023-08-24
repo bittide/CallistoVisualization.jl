@@ -136,6 +136,7 @@ struct StraightEdge
     src
     dst
     ugn
+    onlytimes
 end
 
 struct BentEdge
@@ -144,13 +145,14 @@ struct BentEdge
     dst
     ugn
     latency
+    onlytimes
 end
 
 function draw_outgoing_edge(ad::AxisDrawable, vs, extgraph, edge::StraightEdge)
     for node in extgraph.nodes[edge.src]
         p1 = Point(node)
         next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
-        if !isnothing(next_node)
+        if !isnothing(next_node) && (isnothing(edge.onlytimes) || node.theta in edge.onlytimes )
             p3 = Point(next_node)
             pth = getvar(vs.straightpath, edge.edgeid)
             pth.points = [p1, p3]
@@ -166,7 +168,10 @@ function draw_outgoing_edge(ad::AxisDrawable, vs, extgraph, edge::BentEdge)
         next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
         if !isnothing(next_node)
             p3 = Point(next_node)
-            line(ad, [p1, p2, p3]; linestyle=vs.linestyle)
+            pth = getvar(vs.straightpath, edge.edgeid)
+            pth.points = [p1, p2,  p3]
+            draw(ad, pth)
+            #line(ad, [p1, p2, p3]; linestyle=vs.linestyle)
         end
     end
 end
@@ -200,8 +205,17 @@ end
 
 
 
+
 ##############################################################################
 
+function getpaths(; timinggraph_arrowpos = 0.5, kwargs...)
+    linestyle = LineStyle(Color(:black),2)
+    a = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
+    b = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
+    verticalpath = Path(; arrows = (a,), linestyle)
+    straightpath = Path(; arrows = (b,), linestyle)
+    return verticalpath, straightpath
+end
 
 
 function Timing(n, edges, bidirectional)
@@ -253,10 +267,7 @@ function Timing(n, edges, bidirectional)
     drawframes = true
     linestyle = LineStyle(Color(:black),2)
 
-    a = (0.5, TriangularArrow(; size = 0.02))
-    b = (0.5, TriangularArrow(; size = 0.02))
-    verticalpath = Path(; arrows = (a,), linestyle)
-    straightpath = Path(; arrows = (b,), linestyle)
+    verticalpath, straightpath = getpaths()
 
     numberframes = false
     frameradius = 13
@@ -305,6 +316,9 @@ function Timing(n, edges; bidirectional = false, kwargs...)
 
     vs = Timing(n, edges, bidirectional)
     setoptions!(vs, "timinggraph_", kwargs...)
+
+    vs.verticalpath, vs.straightpath = getpaths(; kwargs...)
+
     
     defaults = Dict(
         :windowbackgroundcolor => hexcol(0xb0b0b0),
@@ -352,16 +366,28 @@ function drawtimingx(ad::AxisDrawable, vs::Timing, ticks, edgedict)
     return extgraph
 end
 
-function makeedge(ls, straight)
+function makeedge(ls, straight, onlytimes)
     if straight
-        return StraightEdge(ls.edgeid, ls.src, ls.dst, ls.nzero)
+        return StraightEdge(ls.edgeid, ls.src, ls.dst, ls.nzero, onlytimes)
     else
-        return BentEdge(ls.edgeid, ls.src, ls.dst, ls.nzero, ls.latency)
+        return BentEdge(ls.edgeid, ls.src, ls.dst, ls.nzero, ls.latency, onlytimes)
     end
 end
 
 function drawtiming(ad::AxisDrawable, vs::Timing, sample, t)
-    edgedict = Dict(e => makeedge(sample.linkstates[e], vs.straight) for e in vs.drawedges)
+    #edgedict = Dict(e => makeedge(sample.linkstates[e], vs.straight) for e in vs.drawedges)
+    edgedict = Dict()
+    for e in vs.drawedges
+        if !isnothing(vs.drawonlytimes)
+            onlytimes = [x.t for x in vs.drawonlytimes if x.edgeid == e]
+        else
+            onlytimes = nothing
+        end
+        edges = makeedge(sample.linkstates[e], vs.straight, onlytimes)
+        edgedict[e] = edges
+    end
+
+
     extgraph = drawtimingx(ad, vs, sample.ticks, edgedict)
 
 

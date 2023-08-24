@@ -149,10 +149,18 @@ function get_occupant_info(ps::PhaseHistory, e, t)
     zmin = ps.gears[e]*ps.theta[dst](t)
     zmax = ps.gears[e]*theta_src_del + ps.nzero[e]
 
-   # Some care is needed here. Some frames were never sent,
+    # Some care is needed here. Some frames were never sent,
     # they just started in the buffer.
-    send_times, receivers_theta  = adjusted_integer_crossings_in_interval(ps.theta[src] + ps.nzero[e], zmin, zmax)
-    receiver_times, rtheta = adjusted_integer_crossings_in_interval(ps.theta[dst], zmin, zmax)
+    if zmax <= zmin
+        send_times = []
+        receivers_theta = []
+        receiver_times = []
+        rtheta = []
+    else
+        send_times, receivers_theta  = adjusted_integer_crossings_in_interval(ps.theta[src] + ps.nzero[e], zmin, zmax)
+        receiver_times, rtheta = adjusted_integer_crossings_in_interval(ps.theta[dst], zmin, zmax)
+    end
+
     return zmin, zmax, receivers_theta, send_times, receiver_times
 end
 
