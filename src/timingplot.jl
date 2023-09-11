@@ -208,8 +208,10 @@ end
 
 ##############################################################################
 
-function getpaths(; timinggraph_arrowpos = 0.5, kwargs...)
-    linestyle = LineStyle(Color(:black),2)
+function getpaths(; timinggraph_arrowpos = 0.5,
+                  timinggraph_linestyle = LineStyle(Color(:black),2),
+                  kwargs...)
+    linestyle = timinggraph_linestyle
     a = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
     b = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
     verticalpath = Path(; arrows = (a,), linestyle)
@@ -261,7 +263,7 @@ function Timing(n, edges, bidirectional)
   
     drawedges = collect(1:n-1)
     if bidirectional
-        drawedges = edges
+        drawedges = collect(1:m)
     end
     
     drawframes = true
@@ -346,6 +348,9 @@ function drawtiming(vs::Timing, sample, t)
     return ad
 end
 
+#
+# We probably need something better than this.
+#
 # call this function with data not in
 # the form of a sample
 function drawtimingx(ad::AxisDrawable, vs::Timing, ticks, edgedict)
