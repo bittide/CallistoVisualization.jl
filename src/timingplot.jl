@@ -18,10 +18,10 @@ default_offsets(i) = 0
 Base.@kwdef mutable struct Timing
     n
     edges
+    axis = nothing
     sample = nothing
     t = nothing
-    ugn = nothing
-    kw = Dict()
+    ugn = nothing  # used to create edges when there is no sample
     tmin = 0
     tmax = 10
     bufcols = default_bufcols
@@ -47,6 +47,10 @@ Base.@kwdef mutable struct Timing
     nodelabelsincludeid = false
     scaletype = :none
     drawtime = true
+    edgedict = Dict()
+    ticks = []  # only used to create extgraph
+    extgraph = nothing
+    straightedgefn = nothing
 end
 
 
@@ -172,7 +176,6 @@ struct StraightEdge
     src
     dst
     ugn
-    #onlytimes
 end
 
 struct BentEdge
@@ -181,21 +184,23 @@ struct BentEdge
     dst
     ugn
     latency
-    #onlytimes
 end
 
 function draw_outgoing_edge(ad::AxisDrawable, vs, extgraph, edge::StraightEdge)
     for node in extgraph.nodes[edge.src]
         p1 = Point(node)
         next_node = node_by_theta(extgraph, edge.dst, node.theta + edge.ugn)
-        #if !isnothing(next_node) && (isnothing(edge.onlytimes) || node.theta in edge.onlytimes )
-        if !isnothing(next_node) && vs.isvisible(edge.edgeid, node.theta) 
+        if !isnothing(next_node) && vs.isvisible(edge.edgeid, node.theta)
             p3 = Point(next_node)
-            b = (vs.arrowpos, TriangularArrow(; size = vs.arrowsize))
-            linestyle = vs.linestyle(edge.edgeid, node.theta)
-            pth = Path(; arrows = (b,), linestyle)
-            pth.points = [p1, p3]
-            draw(ad, pth)
+            if !isnothing(vs.straightedgefn)
+                vs.straightedgefn(ad, p1, p3, edge.edgeid, node.theta)
+            else
+                b = (vs.arrowpos, TriangularArrow(; size = vs.arrowsize))
+                linestyle = vs.linestyle(edge.edgeid, node.theta)
+                pth = Path(; arrows = (b,), linestyle)
+                pth.points = [p1, p3]
+                draw(ad, pth)
+            end
         end
     end
 end
@@ -242,148 +247,9 @@ function draw_outgoing_vertical_edge(ad::AxisDrawable, vs, extgraph, node)
     end
 end
 
-
-
-
-
-
-##############################################################################
-
-# 
-# function getpaths(; timinggraph_arrowpos = 0.5,
-#                   timinggraph_linestyle = LineStyle(Color(:black),2),
-#                   kwargs...)
-#     linestyle = timinggraph_linestyle
-#     a = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
-#     b = (timinggraph_arrowpos, TriangularArrow(; size = 0.05))
-#     verticalpath = Path(; arrows = (a,), linestyle)
-#     straightpath = Path(; arrows = (b,), linestyle)
-#     return verticalpath, straightpath
-# end
-# 
-# 
-# 
-# function Timing(n, edges, bidirectional)
-#     # red = pk.colormap(1)
-#     # green = pk.colormap(2)
-#     # blue = pk.colormap(3)
-#     # yellow = pk.colormap(4)
-#     # darkred = pk.colormap(5)
-#     # darkgreen = pk.colormap(6)
-#     # darkblue = pk.colormap(7)
-#     # darkyellow = pk.colormap(8)
-#     # lightred = pk.colormap(9)
-#     # lightgreen = pk.colormap(10)
-#     # lightblue = pk.colormap(11)
-#     # lightyellow = pk.colormap(12)
-#    
-#     # m = length(edges)
-#     # if n == 2
-#     #     bufcols = [blue, yellow]
-#     #     linkcols = [red, green]
-#     # else
-#     #     bcols = [blue, green, red, yellow]
-#     #     lcols = [lightblue, lightgreen, lightred, lightyellow]
-# 
-#     #     function b(i)
-#     #         return bcols[1 + i % 4]
-#     #     end
-#         
-#     #     function l(i)
-#     #         return lcols[1 + i % 4]
-#     #     end
-#         
-#     #     bufcols = [b(e) for e=1:m]
-#     #     linkcols = [l(e) for e=1:m]
-#     # end
-#     
-# #    tmax = 10
-# #    tmin = 0
-# #    offsets = zeros(n)
-# #    noderadius = 10
-# #    nodefontsize = 14
-# #    drawonlytimes = nothing
-#                
-# #    drawedges = collect(1:n-1)
-# #    if bidirectional
-# #        drawedges = collect(1:m)
-# #    end
-#     
-# #    drawframes = true
-# #    linestyle = LineStyle(Color(:black),2)
-# 
-# 
-# 
-# #    numberframes = false
-# #    frameradius = 13
-#     #framefontsize = 12
-#     #framefontcolor = Color(:white)
-#     #nodefontcolor = Color(:black)
-# 
-#    # nodeborderlinestyle = LineStyle(Color(:black),1)
-#     #    nodefillcolor = Color(:white)
-#     #nodelabelsincludeid = false
-#     #scaletype = :none
-#     ds = Timing(nothing,
-#                 n,
-#                 edges,
-#  #               tmin,
-#  #               tmax,
-#  #               bufcols,
-#  #               linkcols,
-#  #               offsets,
-# #                false,
-# #                0.6,
-# #                noderadius,
-# #                nodefontsize,
-# #                drawonlytimes,
-# #                drawedges,
-#                 drawframes,
-#                 linestyle,
-# #                verticalpath,
-#                 numberframes,
-#                 frameradius,
-#                 framefontsize,
-#                 framefontcolor,
-#                 nodefontcolor,
-#                 straightpath,
-#                 nodeborderlinestyle,
-#                 nodefillcolor,
-#                 nodelabelsincludeid,
-#                 scaletype
-#                    )
-#     return ds
-# end
-
-
 nodename(i) = string("ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i])
 
-
 ##############################################################################
-
-
-#
-# We probably need something better than this.
-#
-# call this function with data not in
-# the form of a sample
-function drawtimingx(ad::AxisDrawable, vs::Timing, ticks, edgedict)
-    extgraph = ExtGraph(ticks)
-
-    for (e, edge) in edgedict 
-        draw_outgoing_edge(ad, vs, extgraph, edge)
-    end
-
-    for node in allnodes(extgraph)
-        draw_outgoing_vertical_edge(ad, vs, extgraph, node)
-    end
-
-    for node in allnodes(extgraph)
-        draw_node(ad, vs, node)
-    end
-    
-    return extgraph
-end
 
 function makeedge(ls, straight)
     if straight
@@ -395,41 +261,65 @@ end
 
 function drawtiming(ad::AxisDrawable, vs::Timing)
 
-    makeedge(e) = StraightEdge(e, vs.edges[e].src, vs.edges[e].dst, vs.ugn[e])
-    maketicks() = [(tick, tick) for tick = vs.tmin-10:vs.tmax+10]
-
-    n = vs.n
-    m = length(vs.edges)
-    
-    if isnothing(vs.sample)
-        edgedict = Dict( e => makeedge(e) for e=1:m)
-        ticks = [maketicks() for i=1:n]
-    else
-        edgedict = Dict(e => makeedge(vs.sample.linkstates[e], vs.straight) for e in vs.edges)
-        ticks = sample.ticks
+    for (e, edge) in vs.edgedict 
+        draw_outgoing_edge(ad, vs, vs.extgraph, edge)
     end
 
-    extgraph = drawtimingx(ad, vs, ticks, edgedict)
+    for node in allnodes(vs.extgraph)
+        draw_outgoing_vertical_edge(ad, vs, vs.extgraph, node)
+    end
 
+    for node in allnodes(vs.extgraph)
+        draw_node(ad, vs, node)
+    end
+    
     # horizontal line indicating current value of t
     if vs.drawtime && !vs.straight
-        line(ad, Point(-1, t), Point(vs.n+1, t); linestyle = vs.timelinestyle)
+        line(ad, Point(-1, vs.t), Point(vs.n+1, vs.t); linestyle = vs.timelinestyle)
     end
 
     # draw frames
     if vs.drawframes && !vs.straight
-        for e in vs.edges
-            draw_link_frames(ad, vs, sample.linkstates[e], t)
-            draw_buffer_frames(ad, vs, sample.linkstates[e], t)
+        #for e in vs.edges
+        for e in 1:length(vs.edges)
+            draw_link_frames(ad, vs, vs.sample.linkstates[e], vs.t)
+            draw_buffer_frames(ad, vs, vs.sample.linkstates[e], vs.t)
         end
     end
 end
 
 ##############################################################################
 
-Timing(n, edges; kw...) = Timing(; n, edges, kw, allowed_kws(Timing, kw)...)
+function setup!(timing::Timing)
+    nsmakeedge(e) = StraightEdge(e, timing.edges[e].src,
+                               timing.edges[e].dst, timing.ugn[e])
+    maketicks() = [(tick, tick) for tick = timing.tmin-10:timing.tmax+10]
 
-PlotKit.Axis(timing::Timing; kw...) = Axis(; axis_defaults(timing)..., timing.kw..., kw...)
+    n = timing.n
+    m = length(timing.edges)
+    
+    if isnothing(timing.sample)
+        timing.edgedict = Dict( e => nsmakeedge(e) for e=1:m)
+        timing.ticks = [maketicks() for i=1:n]
+    else
+        #timing.edgedict = Dict(e => makeedge(timing.sample.linkstates[e],
+        #                                     timing.straight) for e in timing.edges)
+        timing.edgedict = Dict(e => makeedge(timing.sample.linkstates[e],
+                                      timing.straight) for e=1:m)
+        timing.ticks = timing.sample.ticks
+    end
+    timing.extgraph = ExtGraph(timing.ticks)
+end
+
+function Timing(n, edges; kw...)
+    timing = Timing(; n, edges, allowed_kws(Timing, kw)...)
+    setup!(timing)
+    axis = Axis(; axis_defaults(timing)..., kw...)
+    timing.axis = axis
+    return timing
+end
+
+
 
 axis_defaults(timing) = Dict(
     :windowbackgroundcolor => hexcol(0xb0b0b0),
@@ -445,7 +335,7 @@ axis_defaults(timing) = Dict(
 
 
 function PlotKit.draw(timing::Timing; kw...)
-    axis = Axis(timing; kw...)
+    axis = timing.axis
     ad = AxisDrawable(axis)
     drawaxis(ad)
     setclipbox(ad)
