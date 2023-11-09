@@ -7,5 +7,6 @@ version = "0.1.0"
 [deps]
 PlotKit = "003d7de4-8e60-4dbf-84f8-37f925e78aff"
 Callisto = "4ae4e7f3-3a0d-47fd-9705-768e0f1baff0"
+Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
 
 
